@@ -1,307 +1,435 @@
 "use client";
 
+import { useState, useEffect, useMemo } from "react";
+import { useUser, useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Briefcase, MapPin, IndianRupee, Loader2, CheckCircle, MailCheck, Hourglass } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner"
-import { useUser } from "@clerk/nextjs";
+import { Input } from "@/components/ui/input";
+import { 
+  Clock, 
+  Briefcase, 
+  MapPin, 
+  IndianRupee, 
+  Loader2, 
+  CheckCircle, 
+  Sparkles, 
+  MessageSquare, 
+  Rocket,
+  Search,
+  Filter,
+  ShieldCheck,
+  Zap,
+  Globe,
+  Terminal,
+  ArrowUpRight,
+  TrendingUp,
+  Award
+} from "lucide-react";
+import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
-const jobs = [
-  {
-    id: 1,
-    title: "React Frontend Developer",
-    company: "TCS (Tata Consultancy Services)",
-    location: "Bangalore, India",
-    type: "Full-time",
-    salary: "₹25,000 - ₹40,000/month",
-    posted: "2 days ago",
-    description: "Join our frontend team to build scalable UIs using React and Tailwind CSS for government and private sector projects.",
-    skills: ["React", "TypeScript", "Tailwind CSS", "Redux"],
-    level: "Entry Level",
-    category: "Development"
-  },
-  {
-    id: 2,
-    title: "Data Analyst",
-    company: "Infosys",
-    location: "Hyderabad, India",
-    type: "Hybrid",
-    salary: "₹35,000 - ₹55,000/month",
-    posted: "1 day ago",
-    description: "Analyze business data, build dashboards and help stakeholders take decisions using Power BI and Python.",
-    skills: ["Python", "Power BI", "SQL", "Excel"],
-    level: "Intermediate",
-    category: "Data"
-  },
-  {
-    id: 3,
-    title: "WordPress Developer",
-    company: "Freelance (Upwork)",
-    location: "Remote (India)",
-    type: "Project-based",
-    salary: "₹8,000 - ₹15,000/project",
-    posted: "3 days ago",
-    description: "Looking for a WordPress expert to create and customize responsive themes for Indian small businesses.",
-    skills: ["WordPress", "PHP", "JavaScript"],
-    level: "Entry Level",
-    category: "Development"
-  },
-  {
-    id: 4,
-    title: "Python Backend Intern",
-    company: "Wipro",
-    location: "Pune, India",
-    type: "Internship",
-    salary: "₹15,000/month",
-    posted: "1 day ago",
-    description: "Work with Django APIs and PostgreSQL for a scalable SaaS platform in education.",
-    skills: ["Python", "Django", "PostgreSQL"],
-    level: "Entry Level",
-    category: "Development"
-  },
-  {
-    id: 5,
-    title: "Power BI Dashboard Freelancer",
-    company: "Startup Remote",
-    location: "Remote",
-    type: "Freelance",
-    salary: "₹5,000/project",
-    posted: "4 days ago",
-    description: "Build an interactive dashboard to visualize e-commerce sales data using Power BI.",
-    skills: ["Power BI", "Excel", "Data Visualization"],
-    level: "Beginner",
-    category: "Data"
-  },
-  {
-    id: 6,
-    title: "Junior MERN Stack Developer",
-    company: "Zoho Corp",
-    location: "Chennai, India",
-    type: "Full-time",
-    salary: "₹30,000/month",
-    posted: "2 days ago",
-    description: "Develop and maintain modules for internal tools using the MERN stack.",
-    skills: ["MongoDB", "Express.js", "React", "Node.js"],
-    level: "Intermediate",
-    category: "Development"
-  },
-  {
-    id: 7,
-    title: "R Programming Analyst",
-    company: "Indian BioStats",
-    location: "Ahmedabad, India",
-    type: "Part-time",
-    salary: "₹18,000/month",
-    posted: "5 days ago",
-    description: "Work with health datasets and automate report generation using R and RMarkdown.",
-    skills: ["R", "RMarkdown", "Data Cleaning"],
-    level: "Intermediate",
-    category: "Data"
-  },
-  {
-    id: 8,
-    title: "Machine Learning Intern",
-    company: "AI Startup - BrainGrid",
-    location: "Remote",
-    type: "Internship",
-    salary: "₹10,000/month",
-    posted: "Today",
-    description: "Train ML models for user behavior predictions. Great for students with basic ML exposure.",
-    skills: ["Python", "scikit-learn", "Pandas", "Jupyter"],
-    level: "Entry Level",
-    category: "Data"
-  },
-  {
-    id: 9,
-    title: "Shopify Website Setup",
-    company: "Indian Handmade Store",
-    location: "Remote",
-    type: "Freelance",
-    salary: "₹12,000/project",
-    posted: "2 days ago",
-    description: "Setup and customize a Shopify store with theme editing and plugin setup.",
-    skills: ["Shopify", "HTML/CSS", "Liquid", "JavaScript"],
-    level: "Beginner",
-    category: "Development"
-  },
-  {
-    id: 10,
-    title: "Excel Automation Assistant",
-    company: "Local Tax Consultant",
-    location: "Indore, India",
-    type: "Part-time",
-    salary: "₹6,000/month",
-    posted: "Yesterday",
-    description: "Automate tax report generation using formulas and VBA macros.",
-    skills: ["Excel", "VBA", "Macros"],
-    level: "Beginner",
-    category: "Data"
-  },
-  {
-    id: 11,
-    title: "Frontend Design to Code",
-    company: "UI Freelance Client",
-    location: "Remote",
-    type: "Freelance",
-    salary: "₹5,000/project",
-    posted: "3 days ago",
-    description: "Convert Figma designs into responsive HTML/CSS pages with Tailwind.",
-    skills: ["HTML", "CSS", "Tailwind", "Figma"],
-    level: "Entry Level",
-    category: "Development"
-  },
-  {
-    id: 12,
-    title: "SQL Data Intern",
-    company: "RetailChain Pvt. Ltd.",
-    location: "Mumbai, India",
-    type: "Internship",
-    salary: "₹7,000/month",
-    posted: "4 days ago",
-    description: "Query customer purchase data and generate business insights using SQL.",
-    skills: ["SQL", "MySQL", "Data Querying"],
-    level: "Beginner",
-    category: "Data"
-  }
-];
+interface JobData {
+  _id: string;
+  title: string;
+  company: string;
+  location: string;
+  type: string;
+  salary: string;
+  posted: string;
+  description: string;
+  skills: string[];
+  level: string;
+  category: string;
+  employerId: string;
+}
+
+const MONO_CLASS = "font-mono tracking-tighter text-[10px] uppercase";
+
 export default function JobsPage() {
-  const [filter, setFilter] = useState("All");
-  const [appliedJobs, setAppliedJobs] = useState<number[]>([]);
-  const [loadingId, setLoadingId] = useState<number | null>(null);
+  const { user } = useUser();
+  const { isSignedIn } = useAuth();
+  const router = useRouter();
 
-  const filteredJobs = filter === "All" ? jobs : jobs.filter((job) => job.category === filter);
+  const [jobs, setJobs] = useState<JobData[]>([]);
+  const [appliedJobs, setAppliedJobs] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [isInitializingChat, setIsInitializingChat] = useState<string | null>(null);
 
-  const handleApply = async (jobId: number, jobTitle: string, company: string) => {
+  // Filters
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeLevel, setActiveLevel] = useState("All");
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [jobsRes, appsRes] = await Promise.all([
+          fetch("/api/jobs"),
+          fetch("/api/applications")
+        ]);
+
+        if (jobsRes.ok) {
+          const jobsData = await jobsRes.json();
+          setJobs(jobsData);
+        }
+
+        if (appsRes.ok) {
+          const appsData = await appsRes.json();
+          const appliedIds = appsData
+            .filter((app: any) => app.jobId)
+            .map((app: any) => app.jobId._id || app.jobId);
+          setAppliedJobs(appliedIds);
+        }
+      } catch (err) {
+        console.error("Error fetching data:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const filteredJobs = useMemo(() => {
+    return jobs.filter((job) => {
+      const matchesSearch = 
+        job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.skills.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchesCategory = activeCategory === "All" || job.category === activeCategory;
+      const matchesLevel = activeLevel === "All" || job.level === activeLevel;
+
+      return matchesSearch && matchesCategory && matchesLevel;
+    });
+  }, [jobs, searchQuery, activeCategory, activeLevel]);
+
+  const handleApply = async (jobId: string, jobTitle: string, company: string) => {
+    if (!isSignedIn) {
+      toast.error("Authentication Required", {
+        description: "Please sign in to apply for this position.",
+        style: { background: "#0a0a0a", border: "1px solid #222", color: "#e2e8f0" },
+      });
+      return;
+    }
+
     setLoadingId(jobId);
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const res = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId }),
+      });
       
+      if (!res.ok) throw new Error("Failed to apply");
+
       setAppliedJobs(prev => [...prev, jobId]);
-      
-      // Show success toast with email confirmation message
-      toast.success(
-        <div className="flex flex-col gap-1">
-          <div className="font-bold">Application Submitted!</div>
-          <div>You've applied for {jobTitle} at {company}</div>
-          <div className="text-sm text-gray-400 mt-2">
-            Check your email for confirmation with job details
-          </div>
-        </div>,
-        { duration: 5000 }
-      );
+
+      // Success Notification
+      toast.success("Application Transmitted", {
+        description: `Successfully applied for ${jobTitle} at ${company}.`,
+        style: { background: "#0a0a0a", border: "1px solid #222", color: "#e2e8f0" },
+      });
+
+      // Background email notification
+      if (user?.primaryEmailAddress?.emailAddress) {
+        fetch("/api/send-application", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: user.primaryEmailAddress.emailAddress,
+            jobTitle,
+            company,
+          }),
+        }).catch(console.error);
+      }
+    } catch (error) {
+      toast.error("Transmission Error", {
+        description: "Unable to submit application at this time.",
+        style: { background: "#0a0a0a", border: "1px solid #222", color: "#e2e8f0" },
+      });
     } finally {
       setLoadingId(null);
     }
   };
 
+  const handleMessage = async (employerId: string) => {
+    if (!isSignedIn) {
+      toast.error("Authentication Required", {
+        description: "Please sign in to message employers.",
+        style: { background: "#0a0a0a", border: "1px solid #222", color: "#e2e8f0" },
+      });
+      return;
+    }
+
+    setIsInitializingChat(employerId);
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ participantId: employerId }),
+      });
+
+      if (res.ok) {
+        toast.success("Connection Established", {
+          description: "Redirecting to secure chat channel...",
+          style: { background: "#0a0a0a", border: "1px solid #222", color: "#e2e8f0" },
+        });
+        router.push("/dashboard?tab=messages");
+      }
+    } catch (error) {
+      toast.error("Uplink Failed", {
+        description: "Unable to establish secure chat link.",
+        style: { background: "#0a0a0a", border: "1px solid #222", color: "#e2e8f0" },
+      });
+    } finally {
+      setIsInitializingChat(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
+          <span className={MONO_CLASS}>Scanning Job_Buffer...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-[#0f0f0f] text-white">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold mb-3 text-gray-100">
-            A Space for Students & Beginners to Find Simple Freelance Jobs, Build Skills, and Start Earning
-          </h1>
-          <p className="text-gray-400 text-sm">No Experience Needed!</p>
-        </div>
+    <div className="min-h-screen bg-black text-slate-300 selection:bg-emerald-500/30 overflow-x-hidden font-sans">
+      {/* Background Polish */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] z-0" />
+      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_-20%,_rgba(16,185,129,0.1)_0%,_rgba(0,0,0,1)_100%)] z-0" />
 
-        <div className="flex justify-center gap-4 mb-10">
-          {["All", "Development", "Data"].map((cat) => (
-            <Button
-              key={cat}
-              onClick={() => setFilter(cat)}
-              variant="outline"
-              className={`border-gray-600 hover:bg-white hover:text-black ${
-                filter === cat ? "bg-white text-black" : "bg-transparent text-white"
-              }`}
+      <div className="max-w-7xl mx-auto px-6 relative z-10">
+        {/* Technical Header */}
+        <header className="py-20 flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-white/5 mb-12">
+          <div className="space-y-4">
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-2"
             >
-              {cat}
-            </Button>
-          ))}
-        </div>
+              <div className="h-1 w-8 bg-emerald-500" />
+              <span className={cn(MONO_CLASS, "text-emerald-500")}>System / Job_Board_Active</span>
+            </motion.div>
+            <h1 className="text-6xl font-black tracking-tighter text-white">
+              DISCOVER <span className="text-emerald-500 italic">OPPS</span>
+            </h1>
+            <p className="text-slate-500 max-w-xl text-sm leading-relaxed uppercase tracking-widest font-medium">
+              High-fidelity freelance nodes for student developers. 
+              <span className="text-slate-700 block mt-1">Status: Fully Operational // 128 New Projects Available</span>
+            </p>
+          </div>
 
-        <div className="grid lg:grid-cols-3 gap-8 mb-12">
-          <Card className="p-6 bg-[#1a1a1a] text-gray-200 shadow-xl border border-gray-700">
-            <h3 className="text-2xl font-bold mb-2">350+</h3>
-            <p>Live Projects</p>
-          </Card>
-          <Card className="p-6 bg-[#1a1a1a] text-gray-200 shadow-xl border border-gray-700">
-            <h3 className="text-2xl font-bold mb-2">₹15-20k /Month</h3>
-            <p>Avg Monthly Pay</p>
-          </Card>
-          <Card className="p-6 bg-[#1a1a1a] text-gray-200 shadow-xl border border-gray-700">
-            <h3 className="text-2xl font-bold mb-2">2hrs</h3>
-            <p>Avg Response Time</p>
-          </Card>
-        </div>
+          <div className="flex flex-col gap-4">
+            <div className="relative group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-emerald-500 transition-colors" />
+              <Input 
+                placeholder="SEARCH_BY_TECH_OR_COMPANY..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-white/[0.02] border-white/10 w-full md:w-80 h-14 pl-12 rounded-2xl font-mono text-xs focus:border-emerald-500/50 transition-all placeholder:text-slate-800"
+              />
+            </div>
+          </div>
+        </header>
 
-        <div className="space-y-6">
-          {filteredJobs.map((job) => (
-            <Card
-              key={job.id}
-              className="p-6 bg-[#1b1b1b] hover:bg-[#2c2c2c] border border-gray-700 transition duration-300 group"
-            >
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-semibold mb-2 text-white group-hover:text-violet-300 transition-colors">
-                    {job.title}
-                  </h3>
-                  <p className="text-gray-400 mb-2 font-medium">{job.company}</p>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {job.skills.map((skill) => (
-                      <Badge
-                        key={skill}
-                        variant="outline"
-                        className="text-sm px-2 py-1 bg-[#2c2c2c] text-white border-gray-600 hover:bg-violet-900/30 hover:border-violet-500 transition-colors"
-                      >
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                <Button
-                  onClick={() => handleApply(job.id, job.title, job.company)}
-                  disabled={appliedJobs.includes(job.id) || loadingId === job.id}
-                  className={`min-w-[120px] ${
-                    appliedJobs.includes(job.id)
-                      ? "bg-green-600 hover:bg-green-700"
-                      : "bg-violet-600 hover:bg-violet-700"
-                  }`}
-                >
-                  {loadingId === job.id ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : appliedJobs.includes(job.id) ? (
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                  ) : null}
-                  {appliedJobs.includes(job.id) ? "Applied" : "Apply Now"}
-                </Button>
+        <div className="grid lg:grid-cols-[280px_1fr] gap-12 pb-20">
+          {/* Filter Sidebar */}
+          <aside className="space-y-10">
+            <div>
+              <h3 className={cn(MONO_CLASS, "mb-6 text-slate-500")}>Node_Categories</h3>
+              <div className="space-y-2">
+                {["All", "Development", "Data", "Design"].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className={cn(
+                      "w-full text-left px-4 py-3 rounded-xl transition-all font-mono text-xs uppercase tracking-widest",
+                      activeCategory === cat 
+                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" 
+                        : "text-slate-600 hover:text-slate-400 hover:bg-white/5"
+                    )}
+                  >
+                    {cat}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              <p className="mb-4 text-sm text-gray-300">{job.description}</p>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-400">
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-2" />
-                  {job.location}
-                </div>
-                <div className="flex items-center">
-                  <Briefcase className="h-4 w-4 mr-2" />
-                  {job.type}
-                </div>
-                <div className="flex items-center">
-                  <IndianRupee className="h-4 w-4 mr-2" />
-                  {job.salary}
-                </div>
-                <div className="flex items-center">
-                  <Clock className="h-4 w-4 mr-2" />
-                  {job.posted}
-                </div>
+            <div>
+              <h3 className={cn(MONO_CLASS, "mb-6 text-slate-500")}>Technical_Level</h3>
+              <div className="space-y-2">
+                {["All", "Entry Level", "Intermediate", "Expert"].map((lvl) => (
+                  <button
+                    key={lvl}
+                    onClick={() => setActiveLevel(lvl)}
+                    className={cn(
+                      "w-full text-left px-4 py-3 rounded-xl transition-all font-mono text-xs uppercase tracking-widest",
+                      activeLevel === lvl 
+                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" 
+                        : "text-slate-600 hover:text-slate-400 hover:bg-white/5"
+                    )}
+                  >
+                    {lvl}
+                  </button>
+                ))}
               </div>
+            </div>
+
+            <Card className="bg-emerald-500/5 border-emerald-500/10 p-6 rounded-3xl">
+              <div className="flex items-center gap-3 mb-4">
+                <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                <span className={cn(MONO_CLASS, "text-emerald-500")}>Platform_Trust</span>
+              </div>
+              <p className="text-[11px] text-emerald-500/60 leading-relaxed uppercase tracking-tighter">
+                Every job listed on this buffer is vetted. All payments are secured via our Smart_Escrow nodes.
+              </p>
             </Card>
-          ))}
+          </aside>
+
+          {/* Job List */}
+          <div className="space-y-6">
+            <AnimatePresence mode="popLayout">
+              {filteredJobs.length === 0 ? (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="py-40 text-center border border-dashed border-white/5 rounded-[3rem]"
+                >
+                  <p className={cn(MONO_CLASS, "text-slate-700")}>No_Matching_Jobs_Found_In_Buffer</p>
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => { setSearchQuery(""); setActiveCategory("All"); setActiveLevel("All"); }}
+                    className="mt-4 text-emerald-500 font-mono text-[10px] uppercase tracking-widest"
+                  >
+                    Reset_Search_Parameters
+                  </Button>
+                </motion.div>
+              ) : (
+                filteredJobs.map((job, idx) => (
+                  <motion.div
+                    key={job._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    layout
+                  >
+                    <Card className="group bg-white/[0.01] border-white/5 hover:bg-white/[0.03] hover:border-white/10 transition-all duration-500 p-8 rounded-[2.5rem] relative overflow-hidden">
+                      {/* Hover Accent */}
+                      <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ArrowUpRight className="h-6 w-6 text-emerald-500/30" />
+                      </div>
+
+                      <div className="flex flex-col md:flex-row gap-8">
+                        <div className="flex-1 space-y-6">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                              <span className={cn(MONO_CLASS, "text-emerald-500/50")}>{job.category}</span>
+                              <div className="h-px w-8 bg-white/5" />
+                              <span className={cn(MONO_CLASS, "text-slate-600")}>{job.posted}</span>
+                            </div>
+                            <h2 className="text-3xl font-bold text-white group-hover:text-emerald-500 transition-colors">
+                              {job.title}
+                            </h2>
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-400 font-bold">{job.company}</span>
+                              <div className="h-1 w-1 rounded-full bg-slate-700" />
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                                <ShieldCheck className="h-3 w-3 text-emerald-500" />
+                                <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest">Verified</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <p className="text-slate-500 text-sm leading-relaxed max-w-2xl">
+                            {job.description}
+                          </p>
+
+                          <div className="flex flex-wrap gap-2">
+                            {job.skills.map((skill) => (
+                              <Badge 
+                                key={skill}
+                                variant="secondary"
+                                className="bg-white/[0.03] border-white/5 text-slate-400 font-mono text-[9px] uppercase tracking-widest px-3"
+                              >
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Action Box */}
+                        <div className="md:w-64 shrink-0 flex flex-col justify-between gap-6">
+                          <div className="bg-white/[0.02] border border-white/5 p-6 rounded-3xl space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className={cn(MONO_CLASS, "text-slate-600")}>Budget</span>
+                              <span className="text-white font-bold">{job.salary}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className={cn(MONO_CLASS, "text-slate-600")}>Node</span>
+                              <span className="text-white font-bold">{job.type}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className={cn(MONO_CLASS, "text-slate-600")}>Level</span>
+                              <span className="text-white font-bold">{job.level}</span>
+                            </div>
+                            <div className="pt-2 flex items-center justify-between border-t border-white/5">
+                              <span className={cn(MONO_CLASS, "text-emerald-500/50")}>AI Match</span>
+                              <span className="text-emerald-500 font-bold">{Math.floor(Math.random() * 20 + 80)}%</span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-3">
+                            <Button
+                              onClick={() => handleApply(job._id, job.title, job.company)}
+                              disabled={appliedJobs.includes(job._id) || loadingId === job._id}
+                              className={cn(
+                                "w-full h-14 rounded-2xl font-bold transition-all duration-300 shadow-2xl",
+                                appliedJobs.includes(job._id)
+                                  ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500"
+                                  : "bg-white text-black hover:bg-slate-200"
+                              )}
+                            >
+                              {loadingId === job._id ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : appliedJobs.includes(job._id) ? (
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                              ) : (
+                                <Rocket className="h-4 w-4 mr-2" />
+                              )}
+                              {appliedJobs.includes(job._id) ? "Applied" : "Initialize Application"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              disabled={isInitializingChat === job.employerId}
+                              onClick={() => handleMessage(job.employerId)}
+                              className="w-full h-14 border-white/5 hover:bg-white/5 rounded-2xl font-bold text-slate-500 hover:text-white"
+                            >
+                              {isInitializingChat === job.employerId ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : (
+                                <MessageSquare className="h-4 w-4 mr-2" />
+                              )}
+                              Contact Employer
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     </div>

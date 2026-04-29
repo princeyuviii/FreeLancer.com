@@ -80,3 +80,24 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* AI Assistant – thin custom scrollbar */
+.ai-scroll::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.ai-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ai-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 99px;
+}
+.ai-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Tight prose spacing inside chat */
+.chat-prose p { margin: 0.35em 0; }
+.chat-prose ul, .chat-prose ol { margin: 0.4em 0; }
+.chat-prose li { margin: 0.2em 0; }

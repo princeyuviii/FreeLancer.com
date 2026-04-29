@@ -29,12 +29,12 @@ export default function RootLayout({
         <body className={inter.className}>
           <Providers
             attribute="class"
-            defaultTheme="system"
-            enableSystem
+            defaultTheme="dark"
+            forcedTheme="dark"
             disableTransitionOnChange
           >
             <Navbar />
-            <main className="mt-20 px-4">{children}</main>
+            <main className="pt-20">{children}</main>
             <Toaster />
           </Providers>
           <Analytics />

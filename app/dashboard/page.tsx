@@ -1,230 +1,497 @@
-'use client'
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Input } from '@/components/ui/input'
-import { motion } from 'framer-motion'
+import { useState, useEffect, Suspense, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useClerk, useUser } from '@clerk/nextjs';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  User as UserIcon, 
+  Briefcase, 
+  MessageSquare, 
+  Settings, 
+  LogOut, 
+  ChevronRight, 
+  LayoutDashboard,
+  ShieldCheck,
+  TrendingUp,
+  Award,
+  Loader2,
+  Bell,
+  Cpu,
+  Terminal,
+  ArrowUpRight,
+  Plus,
+  ExternalLink,
+  Download,
+  Wallet
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card } from '@/components/ui/card';
+import { toast } from 'sonner';
 
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar
-} from 'recharts'
+// Section Components
+import { ChatInterface } from '@/components/chat-interface';
+import { ProfileEditor } from '@/components/profile-editor';
+import { EmployerDashboard } from '@/components/employer-dashboard';
+import { MentorDashboard } from '@/components/mentor-dashboard';
+import { Badge } from '@/components/ui/badge';
+
+const MONO_CLASS = "font-mono tracking-tighter text-[10px] uppercase";
+
+function DashboardContent() {
+  const { signOut } = useClerk();
+  const { user } = useUser();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  const [activeSection, setActiveSection] = useState('profile');
+  const [profile, setProfile] = useState<any>(null);
+  const [applications, setApplications] = useState<any[]>([]);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [profRes, appsRes] = await Promise.all([
+        fetch('/api/profile'),
+        fetch('/api/applications')
+      ]);
+      
+      if (profRes.ok) setProfile(await profRes.json());
+      if (appsRes.ok) setApplications(await appsRes.json());
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) setActiveSection(tab);
+    fetchData();
+  }, [searchParams, fetchData]);
+
+  const setSection = (section: string) => {
+    setActiveSection(section);
+    router.push(`/dashboard?tab=${section}`, { scroll: false });
+  };
+
+  const handleSignOut = async () => {
+    toast.info("Terminating session nodes...", {
+      style: { background: "#0a0a0a", border: "1px solid #222", color: "#e2e8f0" }
+    });
+    await signOut();
+    router.push('/');
+  };
+
+  const handleWithdraw = async () => {
+    if (!profile?.escrowBalance || profile.escrowBalance <= 0) {
+      toast.error("Withdrawal Restricted", {
+        description: "Minimum threshold of ₹1,000 not met for this node.",
+        style: { background: "#0a0a0a", border: "1px solid #222", color: "#e2e8f0" }
+      });
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/withdraw', { method: 'POST' });
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success("Withdrawal Initialized", {
+          description: data.message,
+          style: { background: "#0a0a0a", border: "1px solid #222", color: "#10b981" }
+        });
+        setProfile((prev: any) => ({ ...prev, escrowBalance: 0 }));
+      } else {
+        toast.error(data.error || "Withdrawal failed");
+      }
+    } catch (err) {
+      toast.error("Transmission error during withdrawal.");
+    }
+  };
+
+  const handleDownloadReport = () => {
+    try {
+      const reportContent = `
+FREE_LANCER TECHNICAL REPORT
+============================
+IDENTITY: ${profile?.username}
+ROLE: ${profile?.role}
+XP_LEVEL: ${profile?.experience}
+TECHNICAL_STACK: ${profile?.skills?.join(', ') || 'N/A'}
+LOCATION: ${profile?.location}
+GENERATED_ON: ${new Date().toLocaleString()}
+STATUS: VERIFIED_NODE
+============================
+      `.trim();
+
+      const blob = new Blob([reportContent], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${profile?.username || 'user'}_tech_report.txt`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success("Report Decrypted", {
+        description: "Technical_Summary_v1.0.txt is now in your local storage.",
+        style: { background: "#0a0a0a", border: "1px solid #222", color: "#e2e8f0" }
+      });
+    } catch (err) {
+      toast.error("Failed to generate report.");
+    }
+  };
+
+  const navItems = [
+    { id: 'profile', label: 'Identity_Profile', icon: <UserIcon className="w-4 h-4" /> },
+    { id: 'jobs', label: 'Active_Applications', icon: <Briefcase className="w-4 h-4" /> },
+    { id: 'messages', label: 'Secure_Messages', icon: <MessageSquare className="w-4 h-4" /> },
+  ];
+
+  if (profile?.role === 'Employer') {
+    navItems.push({ id: 'employer', label: 'Employer_Portal', icon: <ShieldCheck className="w-4 h-4" /> });
+  }
+  if (profile?.role === 'Mentor') {
+    navItems.push({ id: 'mentor', label: 'Mentor_Portal', icon: <Award className="w-4 h-4" /> });
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-cyan-500" />
+          <span className={cn(MONO_CLASS, "text-slate-500")}>Decrypting_User_Buffer...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black text-slate-300 font-sans selection:bg-cyan-500/30 overflow-hidden flex">
+      {/* ── Dashboard Sidebar ── */}
+      <aside className="w-72 border-r border-white/5 bg-white/[0.01] flex flex-col z-20">
+        <div className="p-8">
+          <div className="flex items-center gap-3 mb-10">
+            <div className="h-8 w-1 bg-cyan-500" />
+            <span className={cn(MONO_CLASS, "text-cyan-500")}>Control_Panel_V2</span>
+          </div>
+
+          <nav className="space-y-1">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setSection(item.id)}
+                className={cn(
+                  "w-full flex items-center justify-between px-4 py-4 rounded-2xl transition-all group",
+                  activeSection === item.id 
+                    ? "bg-cyan-500/10 text-cyan-500 border border-cyan-500/20" 
+                    : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  {item.icon}
+                  <span className={cn(MONO_CLASS, "text-[11px] font-bold")}>{item.label}</span>
+                </div>
+                <ChevronRight className={cn(
+                  "w-3 h-3 opacity-0 group-hover:opacity-100 transition-all",
+                  activeSection === item.id && "opacity-100"
+                )} />
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        <div className="mt-auto p-8 border-t border-white/5 space-y-6">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-10 w-10 border border-white/10 ring-2 ring-cyan-500/20">
+              <AvatarImage src={profile?.image} />
+              <AvatarFallback className="bg-white/5 text-slate-500 font-bold uppercase">
+                {profile?.username?.substring(0, 2)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-white truncate">{profile?.username}</p>
+              <p className={cn(MONO_CLASS, "text-[8px] text-slate-600")}>{profile?.role || "Freelancer"}</p>
+            </div>
+          </div>
+          <Button 
+            onClick={handleSignOut}
+            variant="ghost" 
+            className="w-full justify-start gap-3 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-400/5 transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className={cn(MONO_CLASS)}>Terminate_Session</span>
+          </Button>
+        </div>
+      </aside>
+
+      {/* ── Main Dashboard Content ── */}
+      <main className="flex-1 overflow-y-auto relative custom-scrollbar">
+        {/* Top Activity Bar */}
+        <div className="sticky top-0 z-30 flex items-center justify-between px-10 py-6 bg-black/80 backdrop-blur-md border-b border-white/5">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold text-white uppercase tracking-tighter">
+              {activeSection === 'profile' && "Identity_System"}
+              {activeSection === 'jobs' && "Task_Buffer"}
+              {activeSection === 'messages' && "Communication_Link"}
+              {activeSection === 'employer' && "Employer_Management"}
+              {activeSection === 'mentor' && "Mentorship_Ops"}
+            </h2>
+          </div>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className={cn(MONO_CLASS, "text-emerald-500")}>Node_Online</span>
+            </div>
+            <button 
+              onClick={() => toast.info("Zero pending alerts in current buffer.", { style: { background: "#0a0a0a", border: "1px solid #222", color: "#e2e8f0" }})}
+              className="relative p-2 text-slate-500 hover:text-white transition-colors"
+            >
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-1 right-1 h-2 w-2 bg-cyan-500 rounded-full border-2 border-black" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-10 max-w-6xl mx-auto pb-32">
+          <AnimatePresence mode="wait">
+            {activeSection === 'profile' && (
+              <motion.div
+                key="profile"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                {isEditingProfile ? (
+                  <ProfileEditor
+                    initialData={profile}
+                    onSave={(updatedData) => {
+                      setProfile(updatedData)
+                      setIsEditingProfile(false)
+                    }}
+                    onCancel={() => setIsEditingProfile(false)}
+                  />
+                ) : (
+                  <div className="space-y-8">
+                    {/* Hero Profile Card */}
+                    <Card className="bg-white/[0.01] border-white/5 rounded-[2.5rem] p-10 overflow-hidden relative">
+                      <div className="absolute top-0 right-0 p-10 opacity-10">
+                        <Cpu className="w-32 h-32 text-cyan-500" />
+                      </div>
+                      
+                      <div className="flex flex-col md:flex-row gap-10 relative z-10">
+                        <Avatar className="h-32 w-32 border-2 border-white/10 rounded-3xl">
+                          <AvatarImage src={profile?.image} />
+                          <AvatarFallback className="bg-white/5 text-slate-500 text-2xl font-bold uppercase">
+                            {profile?.username?.substring(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="flex-1 space-y-6">
+                          <div className="space-y-2">
+                            <h3 className="text-4xl font-black tracking-tighter text-white uppercase">{profile?.username || "Identity_Unknown"}</h3>
+                            <div className="flex flex-wrap gap-3">
+                              <Badge variant="outline" className="border-cyan-500/30 text-cyan-500 bg-cyan-500/5 px-3 py-1 font-mono text-[9px] uppercase tracking-widest rounded-lg">
+                                {profile?.role || "Freelancer"}
+                              </Badge>
+                              <Badge variant="outline" className="border-white/10 text-slate-500 px-3 py-1 font-mono text-[9px] uppercase tracking-widest rounded-lg">
+                                {profile?.location || "Remote_Node"}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 py-6 border-y border-white/5">
+                            <div>
+                              <p className={cn(MONO_CLASS, "text-slate-600 mb-1")}>Rate</p>
+                              <p className="text-white font-bold">₹{profile?.hourlyRate || '0'}/hr</p>
+                            </div>
+                            <div>
+                              <p className={cn(MONO_CLASS, "text-slate-600 mb-1")}>XP_Level</p>
+                              <p className="text-white font-bold">{profile?.experience || 'Beginner'}</p>
+                            </div>
+                            <div>
+                              <p className={cn(MONO_CLASS, "text-slate-600 mb-1")}>Escrow</p>
+                              <p className="text-cyan-500 font-bold">₹{profile?.escrowBalance || '0'}</p>
+                            </div>
+                            <div>
+                              <p className={cn(MONO_CLASS, "text-slate-600 mb-1")}>Uptime</p>
+                              <p className="text-white font-bold">99.8%</p>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-4 pt-4">
+                            <Button onClick={() => setIsEditingProfile(true)} className="bg-white text-black hover:bg-slate-200 rounded-xl px-8 h-12 font-bold uppercase tracking-widest text-[10px]">
+                              Update_Identity
+                            </Button>
+                            <Button onClick={handleDownloadReport} variant="outline" className="border-white/10 hover:bg-white/5 rounded-xl px-8 h-12 font-bold uppercase tracking-widest text-[10px] gap-2">
+                              <Download className="w-3.5 h-3.5" />
+                              Technical_Report
+                            </Button>
+                            <Button onClick={handleWithdraw} variant="ghost" className="text-emerald-500 hover:text-emerald-400 hover:bg-emerald-400/5 rounded-xl px-8 h-12 font-bold uppercase tracking-widest text-[10px] gap-2">
+                              <Wallet className="w-3.5 h-3.5" />
+                              Withdraw_Funds
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <div className="grid md:grid-cols-2 gap-8">
+                      {/* Skills Node */}
+                      <Card className="bg-white/[0.01] border-white/5 rounded-[2rem] p-8 space-y-6">
+                        <div className="flex items-center justify-between">
+                          <h4 className={cn(MONO_CLASS, "text-slate-500")}>Technical_Stack</h4>
+                          <Terminal className="w-4 h-4 text-cyan-500/50" />
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {profile?.skills?.map((skill: string) => (
+                            <div key={skill} className="px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/5 text-slate-400 text-[11px] font-mono">
+                              {skill}
+                            </div>
+                          )) || <p className="text-slate-700 text-xs italic">No components detected.</p>}
+                        </div>
+                      </Card>
+
+                      {/* Achievements Node */}
+                      <Card className="bg-white/[0.01] border-white/5 rounded-[2rem] p-8 space-y-6">
+                        <div className="flex items-center justify-between">
+                          <h4 className={cn(MONO_CLASS, "text-slate-500")}>Achievement_Buffer</h4>
+                          <Award className="w-4 h-4 text-emerald-500/50" />
+                        </div>
+                        <ul className="space-y-3">
+                          {[
+                            "System Initialized: 2024",
+                            "First Task Decrypted",
+                            "High-Value Node Connected"
+                          ].map((ach, i) => (
+                            <li key={i} className="flex items-center gap-3 text-xs text-slate-400 uppercase tracking-widest">
+                              <TrendingUp className="w-3 h-3 text-emerald-500" />
+                              {ach}
+                            </li>
+                          ))}
+                        </ul>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeSection === 'jobs' && (
+              <motion.div
+                key="jobs"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-8"
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className={cn(MONO_CLASS, "text-slate-500")}>Tracked_Project_Nodes</h3>
+                  <Button onClick={() => router.push('/jobs')} size="sm" className="bg-cyan-500 hover:bg-cyan-600 text-black rounded-xl font-bold text-[10px] uppercase tracking-widest px-6 h-10 gap-2 shadow-lg shadow-cyan-900/20">
+                    <Plus className="w-3.5 h-3.5" />
+                    Find_More_Jobs
+                  </Button>
+                </div>
+
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {applications.length === 0 ? (
+                    <div className="col-span-full py-40 text-center border border-dashed border-white/5 rounded-[3rem]">
+                      <p className={cn(MONO_CLASS, "text-slate-700")}>Application_Buffer_Empty</p>
+                    </div>
+                  ) : (
+                    applications.map((app, i) => (
+                      <Card key={app._id} className="group bg-white/[0.01] border-white/5 hover:bg-white/[0.03] hover:border-white/10 transition-all p-6 rounded-3xl relative overflow-hidden cursor-pointer" onClick={() => toast.info(`Accessing logs for node: ${app.jobId?.title || 'Unknown'}`, { style: { background: "#0a0a0a", border: "1px solid #222", color: "#e2e8f0" } })}>
+                        <div className="absolute top-0 right-0 p-4">
+                          <ExternalLink className="w-4 h-4 text-slate-700 group-hover:text-cyan-500 transition-colors" />
+                        </div>
+                        <div className="space-y-4">
+                          <div className="space-y-1">
+                            <h4 className="font-bold text-white text-sm truncate uppercase tracking-tighter">
+                              {app.jobId?.title || 'Unknown_Node'}
+                            </h4>
+                            <p className={cn(MONO_CLASS, "text-[9px] text-slate-600")}>
+                              {app.jobId?.company || 'External_Buffer'}
+                            </p>
+                          </div>
+                          <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                            <Badge className={cn(
+                              "px-2 py-0.5 rounded-lg text-[9px] uppercase tracking-widest border",
+                              app.status === 'Accepted' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                              app.status === 'Rejected' ? "bg-red-500/10 text-red-500 border-red-500/20" :
+                              "bg-cyan-500/10 text-cyan-500 border-cyan-500/20"
+                            )}>
+                              {app.status}
+                            </Badge>
+                            <span className={cn(MONO_CLASS, "text-slate-700")}>
+                              {new Date(app.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {activeSection === 'messages' && (
+              <motion.div
+                key="messages"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                className="h-[calc(100vh-180px)]"
+              >
+                <Card className="h-full bg-white/[0.01] border-white/5 rounded-[2.5rem] overflow-hidden">
+                  <ChatInterface />
+                </Card>
+              </motion.div>
+            )}
+
+            {activeSection === 'employer' && (
+              <motion.div
+                key="employer"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <EmployerDashboard />
+              </motion.div>
+            )}
+
+            {activeSection === 'mentor' && (
+              <motion.div
+                key="mentor"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <MentorDashboard />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </main>
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   return (
-    <div className="p-6 space-y-8 scroll-smooth overflow-y-auto">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold">Welcome back, FreeLancer 👋</h1>
-        <p className="text-muted-foreground">Here’s what’s happening with your freelancing dashboard today.</p>
-      </header>
-
-      <Tabs defaultValue="profile" className="space-y-4">
-        <TabsList>
-        <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="jobs">My Jobs</TabsTrigger>
-          <TabsTrigger value="messages">Messages</TabsTrigger>
-          
-        </TabsList>
-
-        <TabsContent value="profile">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <Card className="bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] shadow-xl border border-[#38bdf8] rounded-2xl text-white">
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-3xl text-[#00f2ff]">Yuvi's Developer Profile 🚀</CardTitle>
-                <p className="text-sm text-gray-300">Track your journey, growth, and presence like a pro.</p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Personal Summary */}
-                <div className="grid md:grid-cols-2 gap-4 text-sm">
-                  <div className="space-y-1">
-                    <p><strong>Name:</strong> Yuvraj Singh Rathore</p>
-                    <p><strong>Role:</strong> AI + Web Developer</p>
-                    <p><strong>Experience:</strong> 1.5+ years</p>
-                    <p><strong>Availability:</strong> 20 hrs/week</p>
-                    <p><strong>Rate:</strong> ₹800/hr</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p><strong>Top Skills:</strong> React, Python, ML, Next.js</p>
-                    <p><strong>Projects:</strong> 12+ completed, 2 active</p>
-                    <p><strong>Mentorship:</strong> Available</p>
-                    <p><strong>Location:</strong> Mandsaur, India</p>
-                    <p><strong>Opportunities:</strong> Internships, Remote Jobs</p>
-                  </div>
-                </div>
-
-                {/* Chart: Weekly Activity */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-[#00f2ff]">Coding Activity</h3>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={[
-                      { day: 'Mon', hrs: 2 },
-                      { day: 'Tue', hrs: 4 },
-                      { day: 'Wed', hrs: 3 },
-                      { day: 'Thu', hrs: 5 },
-                      { day: 'Fri', hrs: 4 },
-                      { day: 'Sat', hrs: 6 },
-                      { day: 'Sun', hrs: 1 },
-                    ]}>
-                      <XAxis dataKey="day" stroke="#ccc" />
-                      <YAxis stroke="#ccc" />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="hrs" stroke="#00f2ff" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Skills Radar */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-[#00f2ff]">Skill Radar</h3>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <RadarChart data={[
-                      { skill: 'React', level: 9 },
-                      { skill: 'Next.js', level: 8 },
-                      { skill: 'Python', level: 9 },
-                      { skill: 'ML', level: 8 },
-                      { skill: 'Java', level: 7 },
-                      { skill: 'Blockchain', level: 6 },
-                    ]}>
-                      <PolarGrid stroke="#888" />
-                      <PolarAngleAxis dataKey="skill" stroke="#ccc" />
-                      <PolarRadiusAxis angle={30} domain={[0, 10]} />
-                      <Radar dataKey="level" stroke="#00f2ff" fill="#00f2ff" fillOpacity={0.6} />
-                      <Tooltip />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Platforms Section */}
-                <div className="grid md:grid-cols-2 gap-4">
-                  {[
-                    { platform: 'GitHub', score: '🔥 250+ commits', link: 'https://github.com/princeyuviii' },
-                    { platform: 'LeetCode', score: '👨‍💻 300+ problems', link: '#' },
-                    { platform: 'Upwork', score: '💼 5 stars, 3 clients', link: '#' },
-                    { platform: 'LinkedIn', score: '🌐 500+ connections', link: 'https://linkedin.com/in/princeyuvi' },
-                  ].map((item, i) => (
-                    <Card key={i} className="bg-[#1b1b2f] border border-[#00f2ff] p-4">
-                      <CardTitle className="text-xl text-[#00f2ff]">{item.platform}</CardTitle>
-                      <p className="text-sm text-gray-300">{item.score}</p>
-                      <a
-                        href={item.link}
-                        target="_blank"
-                        className="text-[#00f2ff] underline text-sm mt-1 inline-block"
-                      >
-                        View Profile →
-                      </a>
-                    </Card>
-                  ))}
-                </div>
-
-                {/* Achievements */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-[#00f2ff]">🏆 Achievements</h3>
-                  <ul className="list-disc list-inside space-y-1 text-gray-300 text-sm">
-                    <li>Infosys CNN Internship completed</li>
-                    <li>Top 50 in DevFest.AI 2024</li>
-                    <li>Hacktoberfest 2024: Level 4</li>
-                    <li>GSSoC 2024 Contributor</li>
-                    <li>Organized MU CodeStorm Hackathon</li>
-                  </ul>
-                </div>
-
-                <div className="pt-4">
-                  <Button variant="outline" className="border-[#00f2ff] text-[#00f2ff] hover:bg-[#00f2ff] hover:text-black">
-                    Edit Profile
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </TabsContent>
-
-        <TabsContent value="jobs">
-          <section className="grid md:grid-cols-3 gap-4">
-            {[
-              { title: 'UI Designer for fintech app', status: 'Pending' },
-              { title: 'AI Resume Builder (ongoing)', status: 'Active' },
-              { title: 'Web3 Frontend, Mentor Match', status: 'Recommended' },
-              { title: 'DevOps role @ StartupX', status: 'Open' },
-              { title: 'Backend Django Developer (remote)', status: 'Applied' },
-              { title: 'Junior Data Analyst for EdTech', status: 'Interviewing' },
-            ].map((job, i) => (
-              <motion.div
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ duration: 0.3 }}
-                key={i}
-              >
-                <Card className="transition-transform duration-300 ease-in-out">
-                  <CardHeader>
-                    <CardTitle>{job.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <Badge variant="secondary">{job.status}</Badge>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </section>
-        </TabsContent>
-
-        <TabsContent value="messages">
-          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 scroll-smooth">
-            <Input placeholder="Search messages..." />
-            {[
-              ['Shubham (Mentor)', 'Let\'s schedule your mock interview this Friday?'],
-              ['Tanya (Client)', 'I reviewed your proposal. Can we connect on Google Meet?'],
-              ['Chirag (Teammate)', 'Bro, I pushed the new backend APIs. Check once.'],
-              ['Hema (Client)', 'Can you share your portfolio link?'],
-              ['Palak (Team Lead)', 'Final call for design updates is tomorrow.'],
-              ['Raj (Recruiter)', 'Are you available for 6-month remote role?'],
-              ['Ashna (Friend)', 'Teach me how you made that AI model 😭'],
-              ['Ravi (HR)', 'Congrats, you’re selected for round 2.'],
-              ['Kavya (Dev team)', 'Add the socket events when you get time.'],
-              ['Mradul (AI Team)', 'Dataset is updated on GDrive.'],
-              ['Zara (Client)', 'Need a ML-based sentiment analyzer. Possible?'],
-              ['Sakshi (Mentor)', 'Let’s review your progress this week.'],
-              ['Tanishka (BHAI project)', 'Blockchain logic’s done, your turn!'],
-              ['Chinu (Frontend Dev)', 'Hey, Figma updated. UI changes pushed.'],
-              ['Ayush (Internship Co.)', 'Your certificate will be shared by Friday.'],
-            ].map(([sender, msg], i) => (
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ duration: 0.2 }}
-                key={i}
-              >
-                <Card>
-                  <CardHeader>
-                    <CardTitle>From: {sender}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p>{msg}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      <footer className="text-center text-muted-foreground text-sm py-10">
-        FreeLancer © {new Date().getFullYear()} • Built with ❤️ by Yuvi
-      </footer>
-    </div>
-  )
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-cyan-500" />
+          <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500">Initializing Dashboard...</p>
+        </div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
+  );
 }
