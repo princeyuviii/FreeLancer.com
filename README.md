@@ -26,13 +26,13 @@
 <br />
 
 ![GitHub stars](https://img.shields.io/github/stars/princeyuviii/FreeLancer.com?style=flat-square&color=a855f7)
-![GitHub forks](https://img.shields.io/github/forks/yourusername/freelancer?style=flat-square&color=a855f7)
+![GitHub forks](https://img.shields.io/github/forks/princeyuviii/FreeLancer.com?style=flat-square&color=a855f7)
 ![License](https://img.shields.io/badge/license-MIT-a855f7?style=flat-square)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-a855f7?style=flat-square)
 
 <br />
 
-[🚀 Live Demo](#) · [📖 Docs](#) · [🐛 Report Bug](../../issues) · [✨ Request Feature](../../issues)
+[🚀 Live Demo](https://yuviii.xyz/) · [📖 Docs](#) · [🐛 Report Bug](../../issues) · [✨ Request Feature](../../issues)
 
 </div>
 
