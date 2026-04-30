@@ -25,7 +25,7 @@
 
 <br />
 
-![GitHub stars](https://img.shields.io/github/stars/yourusername/freelancer?style=flat-square&color=a855f7)
+![GitHub stars](https://img.shields.io/github/stars/princeyuviii/FreeLancer.com?style=flat-square&color=a855f7)
 ![GitHub forks](https://img.shields.io/github/forks/yourusername/freelancer?style=flat-square&color=a855f7)
 ![License](https://img.shields.io/badge/license-MIT-a855f7?style=flat-square)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-a855f7?style=flat-square)
